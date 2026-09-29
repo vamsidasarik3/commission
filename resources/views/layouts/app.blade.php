@@ -160,7 +160,7 @@
                 <div class="flex items-center gap-3">
                     <span class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
                         <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                        custom.local:8084
+                        {{ request()->getHttpHost() }}
                     </span>
 
                     <a href="{{ route('models.create') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm shadow-indigo-600/20 transition-colors">
@@ -181,9 +181,9 @@
             <footer class="bg-white border-t border-slate-200 py-4 px-4 sm:px-6 lg:px-8 text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2 mt-auto">
                 <p>&copy; {{ date('Y') }} Weakest Link Commission Model. All rights reserved.</p>
                 <div class="flex items-center gap-4 text-slate-400">
-                    <span>Host: <code class="text-slate-600 font-mono">custom.local:8084</code></span>
+                    <span>Host: <code class="text-slate-600 font-mono">{{ request()->getHttpHost() }}</code></span>
                     <span>&bull;</span>
-                    <span>Database: <code class="text-slate-600 font-mono">weakest_link_commission</code></span>
+                    <span>Database: <code class="text-slate-600 font-mono">{{ config('database.connections.' . config('database.default') . '.database') }}</code></span>
                     <span>&bull;</span>
                     <span>Laravel v{{ app()->version() }}</span>
                 </div>
