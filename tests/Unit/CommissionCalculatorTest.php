@@ -416,4 +416,32 @@ class CommissionCalculatorTest extends TestCase
             $this->assertArrayHasKey('resulting_leader_commission', $lvl);
         }
     }
+
+    /**
+     * Test 10-level model where each level has a different commission rate.
+     */
+    public function test_ten_levels_with_different_non_fixed_rates(): void
+    {
+        $levels = [
+            ['level' => 1, 'leader' => 'A', 'main_person' => 'B', 'side_person' => 'S1', 'side_sales' => 2000.0, 'commission_rate' => 3.0], // S1: 60.00
+            ['level' => 2, 'leader' => 'B', 'main_person' => 'C', 'side_person' => 'S2', 'side_sales' => 1800.0, 'commission_rate' => 4.0], // S2: 72.00
+            ['level' => 3, 'leader' => 'C', 'main_person' => 'D', 'side_person' => 'S3', 'side_sales' => 1500.0, 'commission_rate' => 5.0], // S3: 75.00
+            ['level' => 4, 'leader' => 'D', 'main_person' => 'E', 'side_person' => 'S4', 'side_sales' => 1400.0, 'commission_rate' => 6.0], // S4: 84.00
+            ['level' => 5, 'leader' => 'E', 'main_person' => 'F', 'side_person' => 'S5', 'side_sales' => 1200.0, 'commission_rate' => 7.0], // S5: 84.00
+            ['level' => 6, 'leader' => 'F', 'main_person' => 'G', 'side_person' => 'S6', 'side_sales' => 1100.0, 'commission_rate' => 8.0], // S6: 88.00
+            ['level' => 7, 'leader' => 'G', 'main_person' => 'H', 'side_person' => 'S7', 'side_sales' => 1000.0, 'commission_rate' => 9.0], // S7: 90.00
+            ['level' => 8, 'leader' => 'H', 'main_person' => 'I', 'side_person' => 'S8', 'side_sales' => 900.0, 'commission_rate' => 10.0], // S8: 90.00
+            ['level' => 9, 'leader' => 'I', 'main_person' => 'J', 'side_person' => 'S9', 'side_sales' => 800.0, 'commission_rate' => 12.0], // S9: 96.00
+            ['level' => 10, 'leader' => 'J', 'main_person' => 'K', 'main_sales' => 300.0, 'side_person' => 'S10', 'side_sales' => 700.0, 'commission_rate' => 15.0], // K: 45.00, S10: 105.00
+        ];
+
+        $result = $this->calculator->calculate(5.0, $levels);
+
+        $this->assertEquals(10, $result['number_of_levels']);
+        $this->assertEquals(45.00, $result['final_commission']);
+        $this->assertEquals('K', $result['weakest_person']);
+        $this->assertEquals(45.00, $result['weakest_commission']);
+        $this->assertEquals(300.00, $result['weakest_sales']);
+        $this->assertEquals(12700.00, $result['total_sales']);
+    }
 }

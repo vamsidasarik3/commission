@@ -97,6 +97,6 @@
 
 
     <!-- Model 2 Results: SUMMARY, COMMISSION BY PERSON, COMMISSION LEDGER -->
-    @include('components.model2-results', ['results' => $results])
+    @include('components.model2-results', ['results' => $results, 'treeData' => $treeData ?? null])
 </div>
 @endsection

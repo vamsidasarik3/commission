@@ -15,13 +15,14 @@ class DashboardController extends Controller
         $totalCount = CommissionModel::count();
         $model1Count = CommissionModel::where('model_type', 'weakest_link')->orWhereNull('model_type')->count();
         $model2Count = CommissionModel::where('model_type', 'generation_override')->count();
+        $model3Count = CommissionModel::where('model_type', 'unilevel')->count();
         $totalSalesSum = CommissionModel::sum('total_sales');
 
         $statistics = [
             [
                 'title' => 'Total Commission Models',
-                'value' => (string) max($totalCount, 12),
-                'change' => "{$model1Count} Model 1 • {$model2Count} Model 2",
+                'value' => (string) $totalCount,
+                'change' => "{$model1Count} M1 • {$model2Count} M2 • {$model3Count} M3",
                 'trend' => 'up',
                 'icon' => 'models',
                 'badge' => 'Active',
@@ -35,20 +36,20 @@ class DashboardController extends Controller
                 'badge' => 'Model 1',
             ],
             [
-                'title' => 'Model 2 (Generation Override)',
+                'title' => 'Model 2 (Override)',
                 'value' => (string) $model2Count,
-                'change' => 'Multi-upline override',
+                'change' => 'Multi-upline overrides',
                 'trend' => 'up',
                 'icon' => 'tiers',
                 'badge' => 'Model 2',
             ],
             [
-                'title' => 'Total Sales Processed',
-                'value' => '₹'.number_format($totalSalesSum, 2),
-                'change' => 'Across all saved models',
+                'title' => 'Model 3 (Unilevel MLM)',
+                'value' => (string) $model3Count,
+                'change' => '10-Gen MLM schedule',
                 'trend' => 'up',
                 'icon' => 'teams',
-                'badge' => 'Revenue',
+                'badge' => 'Model 3',
             ],
         ];
 

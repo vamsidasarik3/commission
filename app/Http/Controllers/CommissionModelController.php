@@ -33,13 +33,16 @@ class CommissionModelController extends Controller
             });
         } elseif ($type === 'generation_override' || $type === 'override') {
             $query->where('model_type', 'generation_override');
+        } elseif ($type === 'unilevel') {
+            $query->where('model_type', 'unilevel');
         }
 
-        $models = $query->paginate(10)->withQueryString();
+        $models = $query->paginate(20)->withQueryString();
         $counts = [
             'all' => CommissionModel::count(),
             'weakest_link' => CommissionModel::where('model_type', 'weakest_link')->orWhereNull('model_type')->count(),
             'generation_override' => CommissionModel::where('model_type', 'generation_override')->count(),
+            'unilevel' => CommissionModel::where('model_type', 'unilevel')->count(),
         ];
 
         return view('models.index', compact('models', 'type', 'counts'));
@@ -48,8 +51,15 @@ class CommissionModelController extends Controller
     /**
      * Show the Commission Model Builder page.
      */
-    public function create(): View
+    public function create(Request $request): View|RedirectResponse
     {
+        $type = $request->query('type');
+        if ($type === 'generation_override' || $type === 'override') {
+            return redirect()->route('override-models.create');
+        } elseif ($type === 'unilevel') {
+            return redirect()->route('unilevel-models.create');
+        }
+
         return view('models.create');
     }
 
@@ -145,25 +155,25 @@ class CommissionModelController extends Controller
 
         // 1. Validate the complete request
         $validated = $request->validate([
-            'name'                        => ['required', 'string', 'max:255'],
-            'commission_rate'             => ['required', 'numeric', 'min:0', 'max:100'],
-            'number_of_levels'            => ['required', 'integer', 'min:1', 'max:100'],
-            'levels'                      => ['required', 'array', 'min:1'],
-            'levels.*.level'              => ['required', 'integer', 'min:1'],
-            'levels.*.commission_rate'    => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'levels.*.main_person'        => ['required', 'string', 'max:255'],
-            'levels.*.main_sales'         => ['required', 'numeric', 'min:0'],
-            'levels.*.side_person'        => ['required', 'string', 'max:255'],
-            'levels.*.side_sales'         => ['required', 'numeric', 'min:0'],
+            'name' => ['required', 'string', 'max:255'],
+            'commission_rate' => ['required', 'numeric', 'min:0', 'max:100'],
+            'number_of_levels' => ['required', 'integer', 'min:1', 'max:100'],
+            'levels' => ['required', 'array', 'min:1'],
+            'levels.*.level' => ['required', 'integer', 'min:1'],
+            'levels.*.commission_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'levels.*.main_person' => ['required', 'string', 'max:255'],
+            'levels.*.main_sales' => ['required', 'numeric', 'min:0'],
+            'levels.*.side_person' => ['required', 'string', 'max:255'],
+            'levels.*.side_sales' => ['required', 'numeric', 'min:0'],
         ], [
-            'name.required'              => 'Model Name is required.',
-            'commission_rate.required'   => 'A global fallback commission rate is required.',
-            'commission_rate.min'        => 'Commission rate must not be negative.',
-            'number_of_levels.required'  => 'Number of levels is required.',
-            'number_of_levels.min'       => 'Number of levels must be a positive integer.',
-            'levels.required'            => 'At least one level is required.',
-            'levels.*.main_sales.min'    => 'Main salesperson sales must not be negative.',
-            'levels.*.side_sales.min'    => 'Side salesperson sales must not be negative.',
+            'name.required' => 'Model Name is required.',
+            'commission_rate.required' => 'A global fallback commission rate is required.',
+            'commission_rate.min' => 'Commission rate must not be negative.',
+            'number_of_levels.required' => 'Number of levels is required.',
+            'number_of_levels.min' => 'Number of levels must be a positive integer.',
+            'levels.required' => 'At least one level is required.',
+            'levels.*.main_sales.min' => 'Main salesperson sales must not be negative.',
+            'levels.*.side_sales.min' => 'Side salesperson sales must not be negative.',
         ]);
 
         // 2. Calculate using CommissionCalculator (authoritative engine calculation snapshot)
@@ -192,16 +202,16 @@ class CommissionModelController extends Controller
             // 5. Create all commission_levels records
             foreach ($calcResult['levels'] as $lvlData) {
                 $model->levels()->create([
-                    'level'              => $lvlData['level'],
-                    'commission_rate'    => $lvlData['commission_rate'],
-                    'main_person'        => $lvlData['main_person'],
-                    'main_sales'         => $lvlData['main_sales'],
-                    'main_commission'    => $lvlData['main_commission'],
-                    'side_person'        => $lvlData['side_person'],
-                    'side_sales'         => $lvlData['side_sales'],
-                    'side_commission'    => $lvlData['side_commission'],
+                    'level' => $lvlData['level'],
+                    'commission_rate' => $lvlData['commission_rate'],
+                    'main_person' => $lvlData['main_person'],
+                    'main_sales' => $lvlData['main_sales'],
+                    'main_commission' => $lvlData['main_commission'],
+                    'side_person' => $lvlData['side_person'],
+                    'side_sales' => $lvlData['side_sales'],
+                    'side_commission' => $lvlData['side_commission'],
                     'selected_commission' => $lvlData['selected_commission'],
-                    'leader_commission'  => $lvlData['leader_commission'],
+                    'leader_commission' => $lvlData['leader_commission'],
                 ]);
             }
 
@@ -312,28 +322,28 @@ class CommissionModelController extends Controller
     {
         // 1. Validate the complete request
         $validated = $request->validate([
-            'name'                      => ['required', 'string', 'max:255'],
-            'commission_rate'           => ['required', 'numeric', 'min:0', 'max:100'],
-            'number_of_levels'          => ['required', 'integer', 'min:1', 'max:100'],
-            'levels'                    => ['required', 'array', 'min:1'],
-            'levels.*.level'            => ['required', 'integer', 'min:1'],
-            'levels.*.commission_rate'  => ['nullable', 'numeric', 'min:0', 'max:100'],
-            'levels.*.main_person'      => ['required', 'string', 'max:255'],
-            'levels.*.main_sales'       => ['required', 'numeric', 'min:0'],
-            'levels.*.side_person'      => ['required', 'string', 'max:255'],
-            'levels.*.side_sales'       => ['required', 'numeric', 'min:0'],
+            'name' => ['required', 'string', 'max:255'],
+            'commission_rate' => ['required', 'numeric', 'min:0', 'max:100'],
+            'number_of_levels' => ['required', 'integer', 'min:1', 'max:100'],
+            'levels' => ['required', 'array', 'min:1'],
+            'levels.*.level' => ['required', 'integer', 'min:1'],
+            'levels.*.commission_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'levels.*.main_person' => ['required', 'string', 'max:255'],
+            'levels.*.main_sales' => ['required', 'numeric', 'min:0'],
+            'levels.*.side_person' => ['required', 'string', 'max:255'],
+            'levels.*.side_sales' => ['required', 'numeric', 'min:0'],
         ], [
-            'name.required'             => 'Model Name is required.',
-            'commission_rate.required'  => 'A global fallback commission rate is required.',
-            'commission_rate.numeric'   => 'Commission rate must be a valid number.',
-            'commission_rate.min'       => 'Commission rate must not be negative.',
-            'commission_rate.max'       => 'Commission rate cannot exceed 100%.',
+            'name.required' => 'Model Name is required.',
+            'commission_rate.required' => 'A global fallback commission rate is required.',
+            'commission_rate.numeric' => 'Commission rate must be a valid number.',
+            'commission_rate.min' => 'Commission rate must not be negative.',
+            'commission_rate.max' => 'Commission rate cannot exceed 100%.',
             'number_of_levels.required' => 'Number of levels is required.',
-            'number_of_levels.integer'  => 'Number of levels must be an integer.',
-            'number_of_levels.min'      => 'Number of levels must be a positive integer.',
-            'levels.required'           => 'At least one level is required.',
-            'levels.*.main_sales.min'   => 'Main salesperson sales must not be negative.',
-            'levels.*.side_sales.min'   => 'Side salesperson sales must not be negative.',
+            'number_of_levels.integer' => 'Number of levels must be an integer.',
+            'number_of_levels.min' => 'Number of levels must be a positive integer.',
+            'levels.required' => 'At least one level is required.',
+            'levels.*.main_sales.min' => 'Main salesperson sales must not be negative.',
+            'levels.*.side_sales.min' => 'Side salesperson sales must not be negative.',
         ]);
 
         // 2. Calculate using CommissionCalculator
@@ -363,16 +373,16 @@ class CommissionModelController extends Controller
             $model->levels()->delete();
             foreach ($calcResult['levels'] as $lvlData) {
                 $model->levels()->create([
-                    'level'              => $lvlData['level'],
-                    'commission_rate'    => $lvlData['commission_rate'],
-                    'main_person'        => $lvlData['main_person'],
-                    'main_sales'         => $lvlData['main_sales'],
-                    'main_commission'    => $lvlData['main_commission'],
-                    'side_person'        => $lvlData['side_person'],
-                    'side_sales'         => $lvlData['side_sales'],
-                    'side_commission'    => $lvlData['side_commission'],
+                    'level' => $lvlData['level'],
+                    'commission_rate' => $lvlData['commission_rate'],
+                    'main_person' => $lvlData['main_person'],
+                    'main_sales' => $lvlData['main_sales'],
+                    'main_commission' => $lvlData['main_commission'],
+                    'side_person' => $lvlData['side_person'],
+                    'side_sales' => $lvlData['side_sales'],
+                    'side_commission' => $lvlData['side_commission'],
                     'selected_commission' => $lvlData['selected_commission'],
-                    'leader_commission'  => $lvlData['leader_commission'],
+                    'leader_commission' => $lvlData['leader_commission'],
                 ]);
             }
 

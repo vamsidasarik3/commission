@@ -90,8 +90,8 @@ class CommissionModel extends Model
     {
         return match ($this->model_type) {
             'generation_override' => 'Level / Generation Override',
-            'unilevel'           => 'Unilevel MLM',
-            default              => 'Weakest Link',
+            'unilevel' => 'Unilevel MLM',
+            default => 'Weakest Link',
         };
     }
 

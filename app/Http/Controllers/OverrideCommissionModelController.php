@@ -74,6 +74,15 @@ class OverrideCommissionModelController extends Controller
                 (int) $validated['max_generations']
             );
 
+            $dummyModel = new CommissionModel([
+                'id' => 0,
+                'name' => 'Override Preview',
+                'model_type' => 'generation_override',
+                'max_generations' => (int) $validated['max_generations'],
+                'final_commission' => $results['total_commission_generated'],
+            ]);
+            $results['tree_data'] = $this->calculator->buildDiagramData($dummyModel, $results);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Override commission model successfully calculated.',
@@ -194,7 +203,9 @@ class OverrideCommissionModelController extends Controller
             $results = $this->calculator->loadHistoricalResults($model);
         }
 
-        return view('override-models.show', compact('model', 'results', 'isExplicitRecalculate'));
+        $treeData = $this->calculator->buildDiagramData($model, $results);
+
+        return view('override-models.show', compact('model', 'results', 'isExplicitRecalculate', 'treeData'));
     }
 
     /**

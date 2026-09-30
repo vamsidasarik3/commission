@@ -18,14 +18,18 @@ class ModelTypeSelectionTest extends TestCase
         $response = $this->get(route('commission-models.create'));
 
         $response->assertStatus(200);
-        $response->assertSee('Select Commission Model Type');
-        $response->assertSee('Weakest Link');
-        $response->assertSee('Level / Generation Override');
-        $response->assertSee('Weakest Link (Model 1) Active');
-        $response->assertSee('override_max_generations');
-        $response->assertSee('Load Specification Example Tree');
-        $response->assertSee('Add Relationship');
-        $response->assertSee('Add Sale');
+        $response->assertSee('Weakest Link Commission Model');
+        $response->assertSee('Model 1 Engine');
+        $response->assertSee('Model 2 (Override)');
+        $response->assertSee('Model 3 (Unilevel)');
+        $response->assertSee('Default 10-Level');
+
+        // Verify query redirect to Model 2 and Model 3
+        $resOverride = $this->get(route('commission-models.create', ['type' => 'generation_override']));
+        $resOverride->assertRedirect(route('override-models.create'));
+
+        $resUnilevel = $this->get(route('commission-models.create', ['type' => 'unilevel']));
+        $resUnilevel->assertRedirect(route('unilevel-models.create'));
     }
 
     /**

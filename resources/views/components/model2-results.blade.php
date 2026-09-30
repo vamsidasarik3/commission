@@ -46,6 +46,18 @@
     foreach ($treeHierarchy as $rootNode) {
         $asciiTreeOutput .= $rootNode['name'] . "\n" . $renderAsciiTree($rootNode['children'] ?? [], '');
     }
+
+    $diagramData = $treeData ?? ($summary['tree_data'] ?? null);
+    if (empty($diagramData) && (!empty($summary['edges']) || !empty($summary['tree_hierarchy']))) {
+        $dummyModel = new \App\Models\CommissionModel([
+            'id' => $summary['model_id'] ?? 0,
+            'name' => $summary['model_name'] ?? 'Generation Override',
+            'model_type' => 'generation_override',
+            'max_generations' => $maxGen,
+            'final_commission' => $totalComm,
+        ]);
+        $diagramData = app(\App\Services\OverrideCommissionCalculator::class)->buildDiagramData($dummyModel, $summary);
+    }
 @endphp
 
 <div id="model2-results-container" class="space-y-8">
@@ -157,9 +169,13 @@
     </div>
 
     <!-- ========================================================================= -->
-    <!-- 2. INTERACTIVE HIERARCHY TREE VISUALIZATION (CORE FEATURE) -->
+    <!-- 2. HIERARCHY DIAGRAM & COMMISSION FLOW -->
     <!-- ========================================================================= -->
-    <x-visual-tree-viewer :treeData="$summary" />
+    @if(!empty($diagramData))
+        <x-hierarchy-diagram-flow :treeData="$diagramData" />
+    @else
+        <x-visual-tree-viewer :treeData="$summary" />
+    @endif
 
     <!-- ========================================================================= -->
     <!-- 3. COMMISSION BY PERSON -->

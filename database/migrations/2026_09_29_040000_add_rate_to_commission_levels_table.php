@@ -20,12 +20,24 @@ return new class extends Migration
         });
 
         // Backfill existing rows from the parent model's flat rate
-        DB::statement('
-            UPDATE commission_levels cl
-            JOIN commission_models cm ON cm.id = cl.commission_model_id
-            SET cl.commission_rate = cm.commission_rate
-            WHERE cl.commission_rate IS NULL
-        ');
+        if (DB::getDriverName() === 'sqlite') {
+            DB::statement('
+                UPDATE commission_levels
+                SET commission_rate = (
+                    SELECT cm.commission_rate
+                    FROM commission_models cm
+                    WHERE cm.id = commission_levels.commission_model_id
+                )
+                WHERE commission_rate IS NULL
+            ');
+        } else {
+            DB::statement('
+                UPDATE commission_levels cl
+                JOIN commission_models cm ON cm.id = cl.commission_model_id
+                SET cl.commission_rate = cm.commission_rate
+                WHERE cl.commission_rate IS NULL
+            ');
+        }
     }
 
     /**

@@ -83,6 +83,11 @@
         </div>
     </div>
 
+    {{-- ── Hierarchy Diagram & Commission Flow ── --}}
+    @if(isset($treeData))
+        <x-hierarchy-diagram-flow :treeData="$treeData" />
+    @endif
+
     {{-- ── Rate Schedule ── --}}
     @if(!empty($results['rate_schedule']))
     <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">

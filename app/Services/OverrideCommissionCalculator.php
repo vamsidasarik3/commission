@@ -897,4 +897,115 @@ class OverrideCommissionCalculator
             'is_historical' => true,
         ];
     }
+
+    /**
+     * Build diagram data for the Hierarchy Diagram & Commission Flow visual component.
+     */
+    public function buildDiagramData(CommissionModel $model, array $results): array
+    {
+        $edgesList = $results['edges'] ?? [];
+        $personList = $results['commission_by_person'] ?? [];
+        $ledger = collect($results['commission_ledger'] ?? []);
+        $maxGen = (int) ($results['max_generations'] ?? $model->max_generations ?? 5);
+
+        // Map parent-child relationships
+        $childrenOf = [];
+        $parentOf = [];
+
+        foreach ($edgesList as $edge) {
+            $p = $edge['parent'];
+            $c = $edge['child'];
+            $childrenOf[$p][] = $c;
+            $parentOf[$c] = $p;
+        }
+
+        // Helper to get all descendants of a person
+        $getDescendants = function (string $person) use (&$getDescendants, &$childrenOf): array {
+            $desc = [];
+            foreach ($childrenOf[$person] ?? [] as $child) {
+                $desc[] = $child;
+                $desc = array_merge($desc, $getDescendants($child));
+            }
+
+            return $desc;
+        };
+
+        // Collect all distinct people
+        $allPeople = [];
+        foreach ($personList as $pName => $pData) {
+            $allPeople[$pName] = true;
+        }
+        foreach ($edgesList as $edge) {
+            $allPeople[$edge['parent']] = true;
+            $allPeople[$edge['child']] = true;
+        }
+
+        $nodes = [];
+        foreach (array_keys($allPeople) as $pName) {
+            $parent = $parentOf[$pName] ?? null;
+            $isLeaf = empty($childrenOf[$pName]);
+            $pData = $personList[$pName] ?? [];
+            $sales = (float) ($pData['personal_sales'] ?? 0);
+            $comm = (float) ($pData['total_commission'] ?? 0);
+
+            $role = $parent === null
+                ? 'Top Leader / Root'
+                : ($isLeaf ? 'Salesperson / Leaf' : 'Upline Leader');
+
+            $nodes[$pName] = [
+                'name' => $pName,
+                'parent' => $parent,
+                'sales' => $sales,
+                'commission' => $comm,
+                'is_leaf' => $isLeaf,
+                'role' => $role,
+            ];
+        }
+
+        // Build edges with override rate and total override commission paid along this branch
+        $edges = [];
+        foreach ($edgesList as $edge) {
+            $p = $edge['parent'];
+            $c = $edge['child'];
+            $rate = (float) $edge['rate'];
+
+            // Branch people: child + child's downlines
+            $branchPeople = array_merge([$c], $getDescendants($c));
+
+            $branchCommission = $ledger->filter(function ($row) use ($p, $branchPeople) {
+                return ($row['earner'] ?? '') === $p
+                    && in_array($row['seller'] ?? '', $branchPeople)
+                    && ! empty($row['is_eligible']);
+            })->sum('commission_amount');
+
+            $edges[] = [
+                'from' => $p,
+                'to' => $c,
+                'pct' => $rate,
+                'commAmt' => round((float) $branchCommission, 2),
+                'branch' => 'override',
+            ];
+        }
+
+        $roots = array_filter($nodes, fn ($n) => empty($n['parent']));
+        $topLeader = ! empty($roots) ? array_key_first($roots) : (array_key_first($nodes) ?? 'A');
+        $topLeaderComm = $nodes[$topLeader]['commission'] ?? 0;
+
+        return [
+            'model_type' => 'generation_override',
+            'model_id' => $model->id,
+            'model_name' => $model->name,
+            'theme' => 'emerald',
+            'title' => 'Hierarchy Diagram & Commission Flow',
+            'badge_text' => 'Model 2 · Generation Override',
+            'subtitle' => 'Visual tree diagram illustrating custom override rates per edge, unreduced sale base, and upward multi-generation commission propagation.',
+            'payout_label' => 'Total Network Override:',
+            'total_payout' => (float) ($results['total_commission_generated'] ?? $model->final_commission),
+            'top_leader' => $topLeader,
+            'top_leader_commission' => (float) $topLeaderComm,
+            'max_generations' => $maxGen,
+            'nodes' => array_values($nodes),
+            'edges' => $edges,
+        ];
+    }
 }

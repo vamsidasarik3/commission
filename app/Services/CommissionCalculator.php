@@ -57,6 +57,12 @@ class CommissionCalculator
             $levelRate = isset($lvl['commission_rate']) && $lvl['commission_rate'] !== null
                 ? (float) $lvl['commission_rate']
                 : $globalRate;
+            $sideRate = isset($lvl['side_rate']) && $lvl['side_rate'] !== null
+                ? (float) $lvl['side_rate']
+                : $levelRate;
+            $mainRate = isset($lvl['main_rate']) && $lvl['main_rate'] !== null
+                ? (float) $lvl['main_rate']
+                : $levelRate;
             $mainPerson = $lvl['main_person'];
             $mainSales = (float) ($lvl['main_sales'] ?? 0.0);
             $sidePerson = $lvl['side_person'];
@@ -64,13 +70,14 @@ class CommissionCalculator
 
             // Register side salesperson
             if (! isset($salespeople[$sidePerson])) {
-                $sideCommission = $this->calculateIndividualCommission($sideSales, $levelRate);
+                $sideCommission = $this->calculateIndividualCommission($sideSales, $sideRate);
                 $salespeople[$sidePerson] = [
                     'name' => $sidePerson,
                     'sales' => $sideSales,
                     'commission' => $sideCommission,
                     'role' => 'side_salesperson',
                     'level' => $lvl['level'],
+                    'rate' => $sideRate,
                 ];
                 $totalSales += $sideSales;
                 $totalPotentialCommission += $sideCommission;
@@ -79,13 +86,14 @@ class CommissionCalculator
             // Register main salesperson (for bottom level always; for intermediate levels only if positive personal sales were passed)
             if ($i === $totalLevels - 1 || $mainSales > 0) {
                 if (! isset($salespeople[$mainPerson])) {
-                    $mainCommission = $this->calculateIndividualCommission($mainSales, $levelRate);
+                    $mainCommission = $this->calculateIndividualCommission($mainSales, $mainRate);
                     $salespeople[$mainPerson] = [
                         'name' => $mainPerson,
                         'sales' => $mainSales,
                         'commission' => $mainCommission,
                         'role' => ($i === $totalLevels - 1) ? 'bottom_main_child' : 'main_chain_salesperson',
                         'level' => $lvl['level'],
+                        'rate' => $mainRate,
                     ];
                     $totalSales += $mainSales;
                     $totalPotentialCommission += $mainCommission;
@@ -118,20 +126,26 @@ class CommissionCalculator
             $levelRate = isset($currentLevel['commission_rate']) && $currentLevel['commission_rate'] !== null
                 ? (float) $currentLevel['commission_rate']
                 : $globalRate;
+            $sideRate = isset($currentLevel['side_rate']) && $currentLevel['side_rate'] !== null
+                ? (float) $currentLevel['side_rate']
+                : $levelRate;
+            $mainRate = isset($currentLevel['main_rate']) && $currentLevel['main_rate'] !== null
+                ? (float) $currentLevel['main_rate']
+                : $levelRate;
             $mainChild = $currentLevel['main_person'];
             $mainSales = (float) ($currentLevel['main_sales'] ?? 0.0);
             $sidePerson = $currentLevel['side_person'];
             $sideSales = (float) ($currentLevel['side_sales'] ?? 0.0);
-            $sideCommission = $this->calculateIndividualCommission($sideSales, $levelRate);
+            $sideCommission = $this->calculateIndividualCommission($sideSales, $sideRate);
 
             if ($i === $totalLevels - 1) {
                 // Bottom level: main child commission comes from their own direct sales
-                $mainCommission = $this->calculateIndividualCommission($mainSales, $levelRate);
+                $mainCommission = $this->calculateIndividualCommission($mainSales, $mainRate);
             } else {
                 // Intermediate level: incoming commission from level below
                 $childBranchCommission = $nextMainCommission;
                 if ($mainSales > 0) {
-                    $directPersonalCommission = $this->calculateIndividualCommission($mainSales, $levelRate);
+                    $directPersonalCommission = $this->calculateIndividualCommission($mainSales, $mainRate);
                     $mainCommission = min($childBranchCommission, $directPersonalCommission);
                 } else {
                     $mainCommission = $childBranchCommission;
@@ -146,6 +160,8 @@ class CommissionCalculator
             $calculatedLevels[$i] = [
                 'level' => $levelNumber,
                 'commission_rate' => $levelRate,
+                'side_rate' => $sideRate,
+                'main_rate' => $mainRate,
                 'leader' => $currentLevel['leader'],
                 'main_child' => $mainChild,
                 'main_person' => $mainChild,
@@ -323,6 +339,8 @@ class CommissionCalculator
             $normalized[] = [
                 'level' => (int) $levelNumber,
                 'commission_rate' => isset($lvl['commission_rate']) && $lvl['commission_rate'] !== null && $lvl['commission_rate'] !== '' ? (float) $lvl['commission_rate'] : null,
+                'side_rate' => isset($lvl['side_rate']) && $lvl['side_rate'] !== null && $lvl['side_rate'] !== '' ? (float) $lvl['side_rate'] : null,
+                'main_rate' => isset($lvl['main_rate']) && $lvl['main_rate'] !== null && $lvl['main_rate'] !== '' ? (float) $lvl['main_rate'] : null,
                 'leader' => $lvl['leader'] ?? $defaultLeader,
                 'main_person' => $lvl['main_person'] ?? ($lvl['main_child'] ?? $defaultMain),
                 'main_sales' => isset($lvl['main_sales']) ? (float) $lvl['main_sales'] : 0.0,

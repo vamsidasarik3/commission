@@ -48,6 +48,11 @@
         </div>
     </div>
 
+    {{-- ── Interactive Hierarchy Diagram & Commission Flow ── --}}
+    @if(isset($treeData))
+        <x-hierarchy-diagram-flow :treeData="$treeData" />
+    @endif
+
     {{-- ── Reference Hierarchy Diagram ── --}}
     <div class="bg-white rounded-2xl border border-violet-200 shadow-sm overflow-hidden">
         <div class="px-6 py-4 border-b border-violet-100 bg-violet-50/60 flex items-center gap-3">

@@ -24,6 +24,10 @@
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
                 + Model 2 (Override Model)
             </a>
+            <a href="{{ route('unilevel-models.create') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-violet-600 text-white hover:bg-violet-700 shadow-sm shadow-violet-600/20 transition-all">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                + Model 3 (Unilevel MLM)
+            </a>
             <a href="{{ route('dashboard') }}" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm transition-colors">
                 Dashboard
             </a>
@@ -31,7 +35,7 @@
     </div>
 
     <!-- Filter Tabs by Model Type -->
-    <div class="flex items-center gap-2 border-b border-slate-200 pb-2">
+    <div class="flex flex-wrap items-center gap-2 border-b border-slate-200 pb-2">
         <a href="{{ route('commission-models.index') }}" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors {{ empty($type) ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100' }}">
             All Models ({{ $counts['all'] ?? $models->total() }})
         </a>
@@ -40,6 +44,9 @@
         </a>
         <a href="{{ route('commission-models.index', ['type' => 'generation_override']) }}" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors {{ $type === 'generation_override' || $type === 'override' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-700' }}">
             Model 2: Generation Override ({{ $counts['generation_override'] ?? 0 }})
+        </a>
+        <a href="{{ route('commission-models.index', ['type' => 'unilevel']) }}" class="px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors {{ $type === 'unilevel' ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-600 hover:bg-violet-50 hover:text-violet-700' }}">
+            Model 3: Unilevel MLM ({{ $counts['unilevel'] ?? 0 }})
         </a>
     </div>
 
@@ -104,10 +111,22 @@
                 <tbody class="divide-y divide-slate-100 text-slate-700">
                     @forelse ($models as $m)
                         @php
-                            $showRoute = $m->isOverrideModel() ? route('override-models.show', $m) : route('commission-models.show', $m);
-                            $editRoute = $m->isOverrideModel() ? route('override-models.edit', $m) : route('commission-models.edit', $m);
-                            $dupRoute = $m->isOverrideModel() ? route('override-models.duplicate', $m) : route('commission-models.duplicate', $m);
-                            $destroyRoute = $m->isOverrideModel() ? route('override-models.destroy', $m) : route('commission-models.destroy', $m);
+                            if ($m->isOverrideModel()) {
+                                $showRoute = route('override-models.show', $m);
+                                $editRoute = route('override-models.edit', $m);
+                                $dupRoute = route('override-models.duplicate', $m);
+                                $destroyRoute = route('override-models.destroy', $m);
+                            } elseif ($m->isUniLevelModel()) {
+                                $showRoute = route('unilevel-models.show', $m);
+                                $editRoute = route('unilevel-models.edit', $m);
+                                $dupRoute = route('unilevel-models.duplicate', $m);
+                                $destroyRoute = route('unilevel-models.destroy', $m);
+                            } else {
+                                $showRoute = route('commission-models.show', $m);
+                                $editRoute = route('commission-models.edit', $m);
+                                $dupRoute = route('commission-models.duplicate', $m);
+                                $destroyRoute = route('commission-models.destroy', $m);
+                            }
                         @endphp
                         <tr class="hover:bg-slate-50/80 transition-colors group">
                             <!-- 1. ID -->
@@ -126,6 +145,10 @@
                                     <div class="text-[11px] text-slate-400 mt-0.5">
                                         {{ $m->relationships->count() }} relationships • {{ $m->overrideSales->count() }} sales
                                     </div>
+                                @elseif($m->isUniLevelModel())
+                                    <div class="text-[11px] text-slate-400 mt-0.5">
+                                        {{ $m->calculation_results['node_count'] ?? ($m->number_of_levels ?? 10) }} distributors • {{ $m->calculation_results['sale_count'] ?? count($m->calculation_results['commission_by_sale'] ?? []) }} sales
+                                    </div>
                                 @else
                                     <div class="flex items-center gap-1.5 mt-0.5 text-[11px] text-slate-400">
                                         <span>Bottleneck:</span>
@@ -141,6 +164,10 @@
                                     <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
                                         Level / Generation Override
                                     </span>
+                                @elseif($m->isUniLevelModel())
+                                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-violet-100 text-violet-800 border border-violet-200">
+                                        Unilevel MLM
+                                    </span>
                                 @else
                                     <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
                                         Weakest Link
@@ -150,9 +177,9 @@
 
                             <!-- 4. Maximum Generations -->
                             <td class="py-3.5 px-4 text-center whitespace-nowrap">
-                                @if($m->isOverrideModel())
+                                @if($m->isOverrideModel() || $m->isUniLevelModel())
                                     <span class="font-mono font-bold text-slate-800 bg-amber-50 border border-amber-200 text-amber-900 px-2.5 py-1 rounded-lg text-xs">
-                                        {{ $m->max_generations ?? 5 }}
+                                        {{ $m->max_generations ?? ($m->number_of_levels ?? 10) }}
                                     </span>
                                 @else
                                     <span class="text-slate-400 font-mono text-xs" title="Not applicable for Weakest Link">—</span>
@@ -170,7 +197,7 @@
                                     ₹{{ number_format($m->final_commission, 2) }}
                                 </div>
                                 <span class="text-[10px] text-slate-400 block font-normal">
-                                    {{ $m->isOverrideModel() ? 'Total Overrides' : 'Leader Payout' }}
+                                    {{ $m->isOverrideModel() ? 'Total Overrides' : ($m->isUniLevelModel() ? 'Total MLM Overrides' : 'Leader Payout') }}
                                 </span>
                             </td>
 

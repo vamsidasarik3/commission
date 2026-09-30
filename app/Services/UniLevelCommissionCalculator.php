@@ -14,15 +14,15 @@ class UniLevelCommissionCalculator
      * @var array<int, float>
      */
     public const DEFAULT_RATE_SCHEDULE = [
-        1  => 10.0,
-        2  => 5.0,
-        3  => 4.0,
-        4  => 3.0,
-        5  => 2.0,
-        6  => 1.0,
-        7  => 1.0,
-        8  => 0.5,
-        9  => 0.5,
+        1 => 10.0,
+        2 => 5.0,
+        3 => 4.0,
+        4 => 3.0,
+        5 => 2.0,
+        6 => 1.0,
+        7 => 1.0,
+        8 => 0.5,
+        9 => 0.5,
         10 => 0.5,
     ];
 
@@ -44,10 +44,10 @@ class UniLevelCommissionCalculator
      * - The full original sale amount is used as the base at every generation (not reduced).
      * - Propagation stops at maxDepth or when there is no more upline.
      *
-     * @param  array  $nodes    [['name' => 'A', 'parent' => null], ['name' => 'B', 'parent' => 'A'], ...]
-     * @param  array  $sales    [['distributor' => 'B1', 'amount' => 10000.0], ...]
+     * @param  array  $nodes  [['name' => 'A', 'parent' => null], ['name' => 'B', 'parent' => 'A'], ...]
+     * @param  array  $sales  [['distributor' => 'B1', 'amount' => 10000.0], ...]
      * @param  array  $rateSchedule  [1 => 10.0, 2 => 5.0, ...] (depth => %)
-     * @param  int    $maxDepth  Maximum generations to pay commission to (default 10)
+     * @param  int  $maxDepth  Maximum generations to pay commission to (default 10)
      */
     public function calculate(
         array $nodes,
@@ -74,7 +74,7 @@ class UniLevelCommissionCalculator
         $allPeople = [];  // name -> true
 
         foreach ($nodes as $node) {
-            $name   = trim($node['name']);
+            $name = trim($node['name']);
             $parent = isset($node['parent']) && $node['parent'] !== '' ? trim($node['parent']) : null;
 
             $parentOf[$name] = $parent;
@@ -88,12 +88,12 @@ class UniLevelCommissionCalculator
         $earnings = [];
         foreach (array_keys($allPeople) as $person) {
             $earnings[$person] = [
-                'name'                 => $person,
-                'personal_sales'       => 0.0,
-                'override_commission'  => 0.0,
-                'total_earnings'       => 0.0,
+                'name' => $person,
+                'personal_sales' => 0.0,
+                'override_commission' => 0.0,
+                'total_earnings' => 0.0,
                 'commissions_received' => [],
-                'depth_in_tree'        => $this->computeDepth($person, $parentOf),
+                'depth_in_tree' => $this->computeDepth($person, $parentOf),
             ];
         }
 
@@ -101,7 +101,7 @@ class UniLevelCommissionCalculator
         $totalPersonalSales = 0.0;
         foreach ($sales as $sale) {
             $distributor = trim($sale['distributor']);
-            $amount      = (float) $sale['amount'];
+            $amount = (float) $sale['amount'];
             $totalPersonalSales += $amount;
 
             if (isset($earnings[$distributor])) {
@@ -110,46 +110,46 @@ class UniLevelCommissionCalculator
         }
 
         // 4. For each sale, walk up the chain and pay commissions
-        $ledger            = [];
-        $totalCommission   = 0.0;
-        $commissionBySale  = [];
+        $ledger = [];
+        $totalCommission = 0.0;
+        $commissionBySale = [];
 
         foreach ($sales as $saleIndex => $sale) {
-            $seller        = trim($sale['distributor']);
+            $seller = trim($sale['distributor']);
             $originalAmount = (float) $sale['amount'];
             $saleCommissions = [];
-            $saleTotal       = 0.0;
+            $saleTotal = 0.0;
 
             $currentNode = $seller;
-            $depth       = 1;
+            $depth = 1;
 
             while (($depth <= $maxDepth) && isset($parentOf[$currentNode]) && $parentOf[$currentNode] !== null) {
                 $upline = $parentOf[$currentNode];
-                $rate   = (float) ($rateSchedule[$depth] ?? 0.0);
+                $rate = (float) ($rateSchedule[$depth] ?? 0.0);
 
                 $commissionAmount = $this->calculateIndividualCommission($originalAmount, $rate);
 
                 $record = [
-                    'sale_index'          => $saleIndex,
-                    'seller'              => $seller,
-                    'earner'              => $upline,
-                    'generation'          => $depth,
-                    'sale_amount'         => round($originalAmount, 2),
-                    'rate'                => $rate,
-                    'commission_amount'   => $commissionAmount,
-                    'is_eligible'         => $rate > 0,
+                    'sale_index' => $saleIndex,
+                    'seller' => $seller,
+                    'earner' => $upline,
+                    'generation' => $depth,
+                    'sale_amount' => round($originalAmount, 2),
+                    'rate' => $rate,
+                    'commission_amount' => $commissionAmount,
+                    'is_eligible' => $rate > 0,
                 ];
 
                 $saleCommissions[] = $record;
-                $ledger[]          = $record;
+                $ledger[] = $record;
 
                 if ($rate > 0) {
-                    $saleTotal     += $commissionAmount;
+                    $saleTotal += $commissionAmount;
                     $totalCommission += $commissionAmount;
 
                     if (isset($earnings[$upline])) {
                         $earnings[$upline]['override_commission'] += $commissionAmount;
-                        $earnings[$upline]['total_earnings']      += $commissionAmount;
+                        $earnings[$upline]['total_earnings'] += $commissionAmount;
                         $earnings[$upline]['commissions_received'][] = $record;
                     }
                 }
@@ -159,20 +159,20 @@ class UniLevelCommissionCalculator
             }
 
             $commissionBySale[] = [
-                'sale_index'           => $saleIndex,
-                'seller'               => $seller,
-                'amount'               => round($originalAmount, 2),
+                'sale_index' => $saleIndex,
+                'seller' => $seller,
+                'amount' => round($originalAmount, 2),
                 'total_commission_paid' => round($saleTotal, 2),
-                'uplines_paid'         => count($saleCommissions),
-                'commissions'          => $saleCommissions,
+                'uplines_paid' => count($saleCommissions),
+                'commissions' => $saleCommissions,
             ];
         }
 
         // 5. Round summaries
         foreach ($earnings as &$pData) {
-            $pData['personal_sales']      = round($pData['personal_sales'], 2);
+            $pData['personal_sales'] = round($pData['personal_sales'], 2);
             $pData['override_commission'] = round($pData['override_commission'], 2);
-            $pData['total_earnings']      = round($pData['total_earnings'], 2);
+            $pData['total_earnings'] = round($pData['total_earnings'], 2);
         }
         unset($pData);
 
@@ -180,16 +180,16 @@ class UniLevelCommissionCalculator
         $hierarchyTree = $this->buildHierarchyTree($parentOf, $earnings, $rateSchedule);
 
         return [
-            'total_personal_sales'     => round($totalPersonalSales, 2),
+            'total_personal_sales' => round($totalPersonalSales, 2),
             'total_commission_generated' => round($totalCommission, 2),
-            'max_depth'                => $maxDepth,
-            'rate_schedule'            => $rateSchedule,
-            'earnings_by_person'       => $earnings,
-            'commission_by_sale'       => $commissionBySale,
-            'ledger'                   => $ledger,
-            'hierarchy_tree'           => $hierarchyTree,
-            'node_count'               => count($allPeople),
-            'sale_count'               => count($sales),
+            'max_depth' => $maxDepth,
+            'rate_schedule' => $rateSchedule,
+            'earnings_by_person' => $earnings,
+            'commission_by_sale' => $commissionBySale,
+            'ledger' => $ledger,
+            'hierarchy_tree' => $hierarchyTree,
+            'node_count' => count($allPeople),
+            'sale_count' => count($sales),
         ];
     }
 
@@ -245,13 +245,13 @@ class UniLevelCommissionCalculator
             }
 
             return [
-                'name'                => $name,
-                'level'               => $level,
-                'personal_sales'      => $earnings[$name]['personal_sales'] ?? 0.0,
+                'name' => $name,
+                'level' => $level,
+                'personal_sales' => $earnings[$name]['personal_sales'] ?? 0.0,
                 'override_commission' => $earnings[$name]['override_commission'] ?? 0.0,
-                'rate_as_upline'      => (float) ($rateSchedule[$level] ?? 0.0),
-                'children'            => $children,
-                'child_count'         => count($children),
+                'rate_as_upline' => (float) ($rateSchedule[$level] ?? 0.0),
+                'children' => $children,
+                'child_count' => count($children),
             ];
         };
 
@@ -276,11 +276,11 @@ class UniLevelCommissionCalculator
         $results = $this->calculate($nodes, $sales, $rateSchedule, $maxDepth);
 
         $model->update([
-            'number_of_levels'         => $maxDepth,
-            'total_sales'              => $results['total_personal_sales'],
+            'number_of_levels' => $maxDepth,
+            'total_sales' => $results['total_personal_sales'],
             'total_potential_commission' => $results['total_commission_generated'],
-            'final_commission'         => $results['total_commission_generated'],
-            'calculation_results'      => $results,
+            'final_commission' => $results['total_commission_generated'],
+            'calculation_results' => $results,
         ]);
 
         return $model->fresh();
@@ -296,16 +296,128 @@ class UniLevelCommissionCalculator
         }
 
         return [
-            'total_personal_sales'       => (float) $model->total_sales,
+            'total_personal_sales' => (float) $model->total_sales,
             'total_commission_generated' => (float) $model->final_commission,
-            'max_depth'                  => $model->max_generations ?? 10,
-            'rate_schedule'              => self::DEFAULT_RATE_SCHEDULE,
-            'earnings_by_person'         => [],
-            'commission_by_sale'         => [],
-            'ledger'                     => [],
-            'hierarchy_tree'             => [],
-            'node_count'                 => 0,
-            'sale_count'                 => 0,
+            'max_depth' => $model->max_generations ?? 10,
+            'rate_schedule' => self::DEFAULT_RATE_SCHEDULE,
+            'earnings_by_person' => [],
+            'commission_by_sale' => [],
+            'ledger' => [],
+            'hierarchy_tree' => [],
+            'node_count' => 0,
+            'sale_count' => 0,
+        ];
+    }
+
+    /**
+     * Build diagram data for the Hierarchy Diagram & Commission Flow visual component.
+     */
+    public function buildDiagramData(CommissionModel $model, array $results): array
+    {
+        $hierarchyTree = $results['hierarchy_tree'] ?? [];
+        $earnings = $results['earnings_by_person'] ?? [];
+        $rateSchedule = $results['rate_schedule'] ?? self::DEFAULT_RATE_SCHEDULE;
+        $ledger = collect($results['ledger'] ?? []);
+
+        $nodes = [];
+        $edges = [];
+
+        // Helper to collect all descendant names of a tree node
+        $getDescendants = function (array $treeNode) use (&$getDescendants): array {
+            $desc = [];
+            foreach ($treeNode['children'] ?? [] as $child) {
+                $desc[] = $child['name'];
+                $desc = array_merge($desc, $getDescendants($child));
+            }
+
+            return $desc;
+        };
+
+        // Recursive tree traversal
+        $traverse = function (array $treeNode, ?string $parentName = null) use (&$traverse, &$nodes, &$edges, $rateSchedule, $earnings, $ledger, $getDescendants): void {
+            $name = $treeNode['name'];
+            $level = (int) ($treeNode['level'] ?? 1);
+            $pSales = (float) ($earnings[$name]['personal_sales'] ?? $treeNode['personal_sales'] ?? 0);
+            $pComm = (float) ($earnings[$name]['override_commission'] ?? $treeNode['override_commission'] ?? 0);
+            $children = $treeNode['children'] ?? [];
+            $isLeaf = empty($children);
+
+            $role = $parentName === null
+                ? 'Root Distributor'
+                : ($isLeaf ? 'Retail Distributor (Leaf)' : 'Level '.$level.' Leader');
+
+            $nodes[$name] = [
+                'name' => $name,
+                'parent' => $parentName,
+                'level' => $level,
+                'sales' => $pSales,
+                'commission' => $pComm,
+                'is_leaf' => $isLeaf,
+                'role' => $role,
+            ];
+
+            if ($parentName !== null) {
+                $rate = (float) ($rateSchedule[1] ?? 10.0);
+
+                // Commission flowing through this branch to parent
+                $branchPeople = array_merge([$name], $getDescendants($treeNode));
+                $branchCommission = $ledger->filter(function ($row) use ($parentName, $branchPeople) {
+                    return ($row['earner'] ?? '') === $parentName
+                        && in_array($row['seller'] ?? '', $branchPeople)
+                        && ! empty($row['is_eligible']);
+                })->sum('commission_amount');
+
+                $edges[] = [
+                    'from' => $parentName,
+                    'to' => $name,
+                    'pct' => $rate,
+                    'commAmt' => round((float) $branchCommission, 2),
+                    'branch' => 'unilevel_downline',
+                ];
+            }
+
+            foreach ($children as $child) {
+                $traverse($child, $name);
+            }
+        };
+
+        foreach ($hierarchyTree as $root) {
+            $traverse($root, null);
+        }
+
+        // Fallback if hierarchyTree was empty
+        if (empty($nodes) && ! empty($earnings)) {
+            foreach ($earnings as $pName => $pData) {
+                $nodes[$pName] = [
+                    'name' => $pName,
+                    'parent' => null,
+                    'level' => 1,
+                    'sales' => (float) ($pData['personal_sales'] ?? 0),
+                    'commission' => (float) ($pData['override_commission'] ?? 0),
+                    'is_leaf' => true,
+                    'role' => 'Distributor',
+                ];
+            }
+        }
+
+        $topLeader = ! empty($hierarchyTree) ? $hierarchyTree[0]['name'] : (array_key_first($nodes) ?? 'Root');
+        $topLeaderComm = $nodes[$topLeader]['commission'] ?? 0;
+
+        return [
+            'model_type' => 'unilevel',
+            'model_id' => $model->id,
+            'model_name' => $model->name,
+            'theme' => 'violet',
+            'title' => 'Hierarchy Diagram & Commission Flow',
+            'badge_text' => 'Model 3 · Unilevel MLM',
+            'subtitle' => 'Visual unilevel hierarchy diagram illustrating generational depths, downline recruit links, and multi-tier commission flow across all levels.',
+            'payout_label' => 'Total Network Commission:',
+            'total_payout' => (float) ($results['total_commission_generated'] ?? $model->final_commission),
+            'top_leader' => $topLeader,
+            'top_leader_commission' => (float) $topLeaderComm,
+            'max_generations' => (int) ($results['max_depth'] ?? $model->max_generations ?? 10),
+            'nodes' => array_values($nodes),
+            'edges' => $edges,
         ];
     }
 }

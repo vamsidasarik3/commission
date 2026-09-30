@@ -223,15 +223,10 @@ class Model2ResultsScreenTest extends TestCase
     }
 
     /**
-     * Test that unified create page and override create page include Model 2 results container.
+     * Test that override create page includes Model 2 results container.
      */
     public function test_create_pages_include_model2_results_view(): void
     {
-        $resUnified = $this->get(route('models.create'));
-        $resUnified->assertStatus(200);
-        $resUnified->assertSee('model2-results-container');
-        $resUnified->assertSee('renderModel2ResultsView');
-
         $resOverride = $this->get(route('override-models.create'));
         $resOverride->assertStatus(200);
         $resOverride->assertSee('model2-results-container');

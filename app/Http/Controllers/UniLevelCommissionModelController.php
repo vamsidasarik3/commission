@@ -24,7 +24,35 @@ class UniLevelCommissionModelController extends Controller
     {
         $defaultRates = UniLevelCommissionCalculator::DEFAULT_RATE_SCHEDULE;
 
-        return view('unilevel-models.create', compact('defaultRates'));
+        // Build 10-level reference hierarchy diagram data
+        $sampleNodes = [
+            ['name' => 'A', 'parent' => null],
+            ['name' => 'B', 'parent' => 'A'],
+            ['name' => 'C', 'parent' => 'A'],
+            ['name' => 'D', 'parent' => 'A'],
+            ['name' => 'B1', 'parent' => 'B'],
+            ['name' => 'B1a', 'parent' => 'B1'],
+            ['name' => 'B1a-1', 'parent' => 'B1a'],
+            ['name' => 'B1a-1-i', 'parent' => 'B1a-1-i'],
+            ['name' => 'B1a-1-i-α', 'parent' => 'B1a-1-i'],
+            ['name' => 'B1a-1-i-α-I', 'parent' => 'B1a-1-i-α'],
+            ['name' => 'B1a-1-i-α-I-X', 'parent' => 'B1a-1-i-α-I'],
+            ['name' => 'B1a-1-i-α-I-X-p', 'parent' => 'B1a-1-i-α-I-X'],
+        ];
+        $sampleSales = [
+            ['distributor' => 'B1a-1-i-α-I-X-p', 'amount' => 10000.0],
+        ];
+        $sampleResults = $this->calculator->calculate($sampleNodes, $sampleSales, $defaultRates, 10);
+        $dummyModel = new CommissionModel([
+            'id' => 0,
+            'name' => '10-Level Reference Unilevel Hierarchy',
+            'model_type' => 'unilevel',
+            'max_generations' => 10,
+            'final_commission' => $sampleResults['total_commission_generated'],
+        ]);
+        $treeData = $this->calculator->buildDiagramData($dummyModel, $sampleResults);
+
+        return view('unilevel-models.create', compact('defaultRates', 'treeData'));
     }
 
     /**
@@ -33,34 +61,34 @@ class UniLevelCommissionModelController extends Controller
     public function calculate(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'max_depth'                  => ['required', 'integer', 'min:1', 'max:20'],
-            'nodes'                      => ['required', 'array', 'min:1'],
-            'nodes.*.name'               => ['required', 'string', 'max:255'],
-            'nodes.*.parent'             => ['nullable', 'string', 'max:255'],
-            'sales'                      => ['required', 'array', 'min:1'],
-            'sales.*.distributor'        => ['required', 'string', 'max:255'],
-            'sales.*.amount'             => ['required', 'numeric', 'min:0'],
-            'rate_schedule'              => ['nullable', 'array'],
-            'rate_schedule.*'            => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'max_depth' => ['required', 'integer', 'min:1', 'max:20'],
+            'nodes' => ['required', 'array', 'min:1'],
+            'nodes.*.name' => ['required', 'string', 'max:255'],
+            'nodes.*.parent' => ['nullable', 'string', 'max:255'],
+            'sales' => ['required', 'array', 'min:1'],
+            'sales.*.distributor' => ['required', 'string', 'max:255'],
+            'sales.*.amount' => ['required', 'numeric', 'min:0'],
+            'rate_schedule' => ['nullable', 'array'],
+            'rate_schedule.*' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ], [
-            'max_depth.required'          => 'Maximum depth is required.',
-            'nodes.required'              => 'At least one distributor node is required.',
-            'nodes.*.name.required'       => 'Each node must have a name.',
-            'sales.required'              => 'At least one sale is required.',
+            'max_depth.required' => 'Maximum depth is required.',
+            'nodes.required' => 'At least one distributor node is required.',
+            'nodes.*.name.required' => 'Each node must have a name.',
+            'sales.required' => 'At least one sale is required.',
             'sales.*.distributor.required' => 'Each sale must identify the distributor.',
-            'sales.*.amount.required'     => 'Each sale must have an amount.',
+            'sales.*.amount.required' => 'Each sale must have an amount.',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed.',
-                'errors'  => $validator->errors()->all(),
+                'errors' => $validator->errors()->all(),
             ], 422);
         }
 
         try {
-            $validated    = $validator->validated();
+            $validated = $validator->validated();
             $rateSchedule = $this->buildRateSchedule($validated['rate_schedule'] ?? []);
 
             $results = $this->calculator->calculate(
@@ -70,16 +98,25 @@ class UniLevelCommissionModelController extends Controller
                 (int) $validated['max_depth']
             );
 
+            $dummyModel = new CommissionModel([
+                'id' => 0,
+                'name' => 'Unilevel Preview',
+                'model_type' => 'unilevel',
+                'max_generations' => (int) $validated['max_depth'],
+                'final_commission' => $results['total_commission_generated'],
+            ]);
+            $results['tree_data'] = $this->calculator->buildDiagramData($dummyModel, $results);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Unilevel commission calculated successfully.',
-                'data'    => $results,
+                'data' => $results,
             ]);
         } catch (\InvalidArgumentException $e) {
             return response()->json([
                 'success' => false,
                 'message' => $e->getMessage(),
-                'errors'  => [$e->getMessage()],
+                'errors' => [$e->getMessage()],
             ], 422);
         } catch (\Throwable $e) {
             report($e);
@@ -87,7 +124,7 @@ class UniLevelCommissionModelController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Calculation engine error: '.$e->getMessage(),
-                'errors'  => [$e->getMessage()],
+                'errors' => [$e->getMessage()],
             ], 500);
         }
     }
@@ -98,17 +135,17 @@ class UniLevelCommissionModelController extends Controller
     public function store(Request $request): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
-            'name'                       => ['required', 'string', 'max:255'],
-            'description'                => ['nullable', 'string', 'max:1000'],
-            'max_depth'                  => ['required', 'integer', 'min:1', 'max:20'],
-            'nodes'                      => ['required', 'array', 'min:1'],
-            'nodes.*.name'               => ['required', 'string', 'max:255'],
-            'nodes.*.parent'             => ['nullable', 'string', 'max:255'],
-            'sales'                      => ['required', 'array', 'min:1'],
-            'sales.*.distributor'        => ['required', 'string', 'max:255'],
-            'sales.*.amount'             => ['required', 'numeric', 'min:0'],
-            'rate_schedule'              => ['nullable', 'array'],
-            'rate_schedule.*'            => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:1000'],
+            'max_depth' => ['required', 'integer', 'min:1', 'max:20'],
+            'nodes' => ['required', 'array', 'min:1'],
+            'nodes.*.name' => ['required', 'string', 'max:255'],
+            'nodes.*.parent' => ['nullable', 'string', 'max:255'],
+            'sales' => ['required', 'array', 'min:1'],
+            'sales.*.distributor' => ['required', 'string', 'max:255'],
+            'sales.*.amount' => ['required', 'numeric', 'min:0'],
+            'rate_schedule' => ['nullable', 'array'],
+            'rate_schedule.*' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
 
         $rateSchedule = $this->buildRateSchedule($validated['rate_schedule'] ?? []);
@@ -116,14 +153,14 @@ class UniLevelCommissionModelController extends Controller
         DB::beginTransaction();
         try {
             $model = CommissionModel::create([
-                'name'                     => $validated['name'],
-                'model_type'               => 'unilevel',
-                'description'              => $validated['description'] ?? null,
-                'max_generations'          => (int) $validated['max_depth'],
-                'commission_rate'          => null,
-                'number_of_levels'         => (int) $validated['max_depth'],
-                'total_sales'              => 0.00,
-                'final_commission'         => 0.00,
+                'name' => $validated['name'],
+                'model_type' => 'unilevel',
+                'description' => $validated['description'] ?? null,
+                'max_generations' => (int) $validated['max_depth'],
+                'commission_rate' => null,
+                'number_of_levels' => (int) $validated['max_depth'],
+                'total_sales' => 0.00,
+                'final_commission' => 0.00,
                 'total_potential_commission' => 0.00,
             ]);
 
@@ -139,10 +176,10 @@ class UniLevelCommissionModelController extends Controller
 
             if ($request->expectsJson()) {
                 return response()->json([
-                    'success'      => true,
-                    'message'      => "Unilevel Model '{$model->name}' saved successfully!",
+                    'success' => true,
+                    'message' => "Unilevel Model '{$model->name}' saved successfully!",
                     'redirect_url' => route('unilevel-models.show', $model),
-                    'model_id'     => $model->id,
+                    'model_id' => $model->id,
                 ]);
             }
 
@@ -172,8 +209,9 @@ class UniLevelCommissionModelController extends Controller
     public function show(CommissionModel $model): View
     {
         $results = $this->calculator->loadFromModel($model);
+        $treeData = $this->calculator->buildDiagramData($model, $results);
 
-        return view('unilevel-models.show', compact('model', 'results'));
+        return view('unilevel-models.show', compact('model', 'results', 'treeData'));
     }
 
     /**
@@ -181,7 +219,7 @@ class UniLevelCommissionModelController extends Controller
      */
     public function edit(CommissionModel $model): View
     {
-        $results      = $this->calculator->loadFromModel($model);
+        $results = $this->calculator->loadFromModel($model);
         $defaultRates = UniLevelCommissionCalculator::DEFAULT_RATE_SCHEDULE;
 
         return view('unilevel-models.edit', compact('model', 'results', 'defaultRates'));
@@ -193,17 +231,17 @@ class UniLevelCommissionModelController extends Controller
     public function update(Request $request, CommissionModel $model): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
-            'name'                       => ['required', 'string', 'max:255'],
-            'description'                => ['nullable', 'string', 'max:1000'],
-            'max_depth'                  => ['required', 'integer', 'min:1', 'max:20'],
-            'nodes'                      => ['required', 'array', 'min:1'],
-            'nodes.*.name'               => ['required', 'string', 'max:255'],
-            'nodes.*.parent'             => ['nullable', 'string', 'max:255'],
-            'sales'                      => ['required', 'array', 'min:1'],
-            'sales.*.distributor'        => ['required', 'string', 'max:255'],
-            'sales.*.amount'             => ['required', 'numeric', 'min:0'],
-            'rate_schedule'              => ['nullable', 'array'],
-            'rate_schedule.*'            => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:1000'],
+            'max_depth' => ['required', 'integer', 'min:1', 'max:20'],
+            'nodes' => ['required', 'array', 'min:1'],
+            'nodes.*.name' => ['required', 'string', 'max:255'],
+            'nodes.*.parent' => ['nullable', 'string', 'max:255'],
+            'sales' => ['required', 'array', 'min:1'],
+            'sales.*.distributor' => ['required', 'string', 'max:255'],
+            'sales.*.amount' => ['required', 'numeric', 'min:0'],
+            'rate_schedule' => ['nullable', 'array'],
+            'rate_schedule.*' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
 
         $rateSchedule = $this->buildRateSchedule($validated['rate_schedule'] ?? []);
@@ -211,8 +249,8 @@ class UniLevelCommissionModelController extends Controller
         DB::beginTransaction();
         try {
             $model->update([
-                'name'            => $validated['name'],
-                'description'     => $validated['description'] ?? null,
+                'name' => $validated['name'],
+                'description' => $validated['description'] ?? null,
                 'max_generations' => (int) $validated['max_depth'],
                 'number_of_levels' => (int) $validated['max_depth'],
             ]);
@@ -246,7 +284,7 @@ class UniLevelCommissionModelController extends Controller
     public function duplicate(CommissionModel $model): RedirectResponse
     {
         $results = $this->calculator->loadFromModel($model);
-        $copy    = $model->replicate();
+        $copy = $model->replicate();
         $copy->name = 'Copy of '.$model->name;
         $copy->save();
 
